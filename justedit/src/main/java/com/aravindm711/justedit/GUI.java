@@ -1,62 +1,57 @@
 package com.aravindm711.justedit;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.Transferable;
-import java.awt.event.*;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
+import java.util.Scanner;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.io.BufferedWriter;
+import java.awt.*;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+
+import java.awt.event.*;
 import javax.swing.text.DefaultEditorKit;
 
 public class GUI extends JFrame implements ActionListener {
 
     private static final long serialVersionUID = 1L;
 
-    private final JTextArea textArea;
+    private final JTextPane textPane;
     private final JMenuBar menuBar;
     private final JMenu menuFile, menuEdit;
     private final JMenuItem newFile, openFile, saveFile, quit, cut,
-                            copy, paste, clearFile, wordWrap;
+                            copy, paste, clearFile;
 
-    private HighlightText highlighter = new HighlightText(Color.GRAY);
-    private SupportedKeywords kw = new SupportedKeywords();
+    private HighlightSyntax syntax = new HighlightSyntax();
 
+    private String fileExtension = "";
     private boolean edit = false;
     private File chosenFile;
 
     public GUI() {
         // Initial Properties of window
-        setSize(700, 1000);
+        setSize(1100, 1000);
         setTitle("Untitled - " + App.NAME);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // Initial properties of textarea
-        textArea = new JTextArea("", 0, 0);
-        textArea.setBackground(new Color(20, 20, 20));
-        textArea.setForeground(Color.WHITE);
-        textArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
-        textArea.setCaretColor(new Color(255, 0, 0));
-        textArea.setTabSize(4);
-        textArea.setLineWrap(true);
-        textArea.setWrapStyleWord(true);
-        textArea.addKeyListener(new KeyAdapter() {
+        // Initial properties of textPane
+        textPane = new JTextPane();
+        textPane.setBackground(new Color(22, 24, 33));
+        textPane.setForeground(new Color(198, 200, 209));
+        textPane.setFont(new Font("Monospaced", Font.PLAIN, 16));
+        textPane.setCaretColor(new Color(198, 200, 209));
+        textPane.setBorder(new EmptyBorder(new Insets(1, 5, 1, 1)));
+        textPane.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
                 edit = true;
-                highlighter.highLight(textArea, kw.getJavaKeywords());
-                highlighter.highLight(textArea, kw.getJavaKeywords());
+                syntax.highlight(textPane, fileExtension);
             }
         });
 
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setViewportView(textArea);
+        JScrollPane scrollPane = new JScrollPane(textPane);
+        scrollPane.setViewportView(textPane);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         getContentPane().setLayout(new BorderLayout());
 
@@ -105,16 +100,6 @@ public class GUI extends JFrame implements ActionListener {
         cut.setToolTipText("Cut");
         cut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.CTRL_MASK));
 
-        wordWrap = new JMenuItem();
-        wordWrap.setText("Word Wrap");
-        wordWrap.setToolTipText("Word Wrap");
-        wordWrap.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W, InputEvent.CTRL_MASK));
-        wordWrap.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                textArea.setLineWrap((textArea.getLineWrap() == false)? true: false);
-            }
-        });
-
         copy = new JMenuItem(new DefaultEditorKit.CopyAction());
         copy.setText("Copy");
         copy.setToolTipText("Copy");
@@ -128,13 +113,12 @@ public class GUI extends JFrame implements ActionListener {
         menuEdit.add(cut);
         menuEdit.add(copy);
         menuEdit.add(paste);
-        menuEdit.add(wordWrap);
     }
 
     @Override
     protected void processWindowEvent(WindowEvent e) {
         if (e.getID() == WindowEvent.WINDOW_CLOSING) {
-            if (edit && textArea.getText() != "") {
+            if (edit && textPane.getText() != "") {
                 String[] options = {"Save and exit", "Don't Save and exit", "Cancel"};
                 int n = JOptionPane.showOptionDialog(this, "Do you want to save the file ?", "Question",
                         JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
@@ -172,15 +156,15 @@ public class GUI extends JFrame implements ActionListener {
                         JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[2]);
                 if (n == 0) {
                     saveFile();
-                    ClearTextArea.clear(textArea);
+                    ClearEditorArea.clear(textPane);
                     setTitle("Untitled - " + App.NAME);
                 } else if (n == 1) {
                     setTitle("Untitled - " + App.NAME);
-                    ClearTextArea.clear(textArea);
+                    ClearEditorArea.clear(textPane);
                 }
                 edit = false;
             } else {
-                ClearTextArea.clear(textArea);
+                ClearEditorArea.clear(textPane);
             }
         } else if (e.getSource() == openFile) {
             if (edit) {
@@ -190,17 +174,21 @@ public class GUI extends JFrame implements ActionListener {
             JFileChooser open = new JFileChooser();
             int option = open.showOpenDialog(this);
             if (option == JFileChooser.APPROVE_OPTION) {
-                ClearTextArea.clear(textArea);
+                ClearEditorArea.clear(textPane);
                 try {
                     chosenFile = open.getSelectedFile();
-                    setTitle(chosenFile.getName() + " | " + App.NAME);
+                    setTitle(chosenFile.getName() + " - " + App.NAME);
                     Scanner scan = new Scanner(new FileReader(chosenFile.getPath()));
-                    while (scan.hasNext()) {
-                        textArea.append(scan.nextLine() + "\n");
+                    String lineNumbers = "", prev;
+                    while ((lineNumbers = scan.nextLine()) != null) {
+                        prev = textPane.getText();
+                        if (prev == "") textPane.setText(lineNumbers);
+                        else textPane.setText(prev + "\n" + lineNumbers);
                     }
                     scan.close();
 
-                    // enableAutoComplete(openFile);
+                    setFileExtension();
+                    syntax.highlight(textPane, fileExtension);
                 } catch (Exception ex) {
                     System.err.println(ex.getMessage());
                 }
@@ -212,12 +200,18 @@ public class GUI extends JFrame implements ActionListener {
             int n = JOptionPane.showOptionDialog(this, "Are you sure to clear the text Area?", "Question",
                     JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[1]);
             if (n == 0) {
-                ClearTextArea.clear(textArea);
+                ClearEditorArea.clear(textPane);
             }
         } else {}
     }
 
+    public void setFileExtension() {
+        fileExtension = chosenFile.getName();
+        fileExtension = fileExtension.substring(fileExtension.lastIndexOf("."), fileExtension.length());
+    }
+
     public void saveFile() {
+        System.out.println("hello");
         try {
             int option = 0;
             if (!edit) {
@@ -226,14 +220,14 @@ public class GUI extends JFrame implements ActionListener {
                 if (option == JFileChooser.APPROVE_OPTION) {
                     chosenFile = fileChoose.getSelectedFile();
                     setTitle(chosenFile.getName() + " - " + App.NAME);
-                    // enableAutoComplete(openFile);
                 }
+                setFileExtension();
             }
             BufferedWriter out = new BufferedWriter(new FileWriter(chosenFile.getPath()));
-            out.write(textArea.getText());
+            out.write(textPane.getText());
             out.close();
 
-            edit = (option == JFileChooser.APPROVE_OPTION)? true: false;
+            edit = (option == JFileChooser.CANCEL_OPTION)? true: false;
         } catch (Exception e) {
             System.err.println(e.getMessage());
         }

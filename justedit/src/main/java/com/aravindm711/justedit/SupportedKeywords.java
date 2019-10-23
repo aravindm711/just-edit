@@ -1,9 +1,8 @@
 package com.aravindm711.justedit;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
 public class SupportedKeywords {
+
+    public SupportedKeywords() {}
 
     private String[] supportedLanguages = {".cpp",".java"};
 
@@ -25,13 +24,20 @@ public class SupportedKeywords {
                 "bool", "explicit", "new", "static_cast", "typeid", "catch", "false", "operator",
                 "template", "typename", "class", "friend", "private", "this", "using", "const_cast",
                 "inline", "public", "throw", "virtual", "delete", "mutable", "protected", "true", "wchar_t",
-                "cout", "cin" };
-    
-    private String[] brackets = { "{", "(" };
-    private String[] bCompletions = { "}", ")" };
+                "cout", "cin", "include", "iostream", "string"};
 
     public String[] getSupportedLanguages() {
         return supportedLanguages;
+    }
+
+    public boolean supportedLanguage(String fileExtension) {
+        for (String language: supportedLanguages) {
+            if (language == fileExtension) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public String[] getJavaKeywords() {
@@ -42,22 +48,13 @@ public class SupportedKeywords {
         return cpp;
     }
 
-    public ArrayList<String> getbracketCompletions() {
-        ArrayList<String> arrayList = new ArrayList<>();
-        arrayList.addAll(Arrays.asList(bCompletions));
-        return arrayList;
-    }
-
-    public ArrayList<String> getbrackets() {
-        ArrayList<String> arrayList = new ArrayList<>();
-        arrayList.addAll(Arrays.asList(brackets));
-        return arrayList;
-    }
-
-    public ArrayList<String> setKeywords(String[] arr) {
-        ArrayList<String> arrayList = new ArrayList<>();
-        arrayList.addAll(Arrays.asList(arr));
-        return arrayList;
+    public String[] getKeywords(String fileExtension) {
+        if (fileExtension == ".cpp") return cpp;
+        else if (fileExtension == ".java") return java;
+        else {
+            String[] empty = {};
+            return empty;
+        }
     }
 
 }
